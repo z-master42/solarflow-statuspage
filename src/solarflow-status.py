@@ -31,7 +31,10 @@ config = load_config()
 
 ZEN_USER = config.get('zendure', 'login', fallback=None) or os.environ.get('ZEN_USER',None)
 ZEN_PASSWD = config.get('zendure', 'password', fallback=None) or os.environ.get('ZEN_PASSWD',None)
-ZEN_API = config.get('zendure', 'zen_api', fallback='https://app.zendure.tech/v2') or os.environ.get('ZEN_API','https://app.zendure.tech/v2')
+ZEN_API = config.get('zendure', 'zen_api', fallback=None) or os.environ.get('ZEN_API','https://app.zendure.tech/v2')
+ZEN_MQTT_HOST = config.get('zendure', 'zen_mqtt', fallback=None) or os.environ.get('ZEN_MQTT','mq.zen-iot.com')
+ZEN_MQTT_USER = "zenAPP"
+ZEN_MQTT_PWD = config.get('zendure', 'zen_mqtt_pwd', fallback=None) or os.environ.get('ZEN_MQTT_PWD','H6s$j9CtNa0N' if "eu" in ZEN_MQTT_HOST else 'oK#PCgy6OZxd')
 MQTT_HOST = config.get('local', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
 MQTT_PORT = config.getint('local', 'mqtt_port', fallback=0) or int(os.environ.get('MQTT_PORT',1883))
 MQTT_USER = config.get('local', 'mqtt_user', fallback=None) or os.environ.get('MQTT_USER',None)
@@ -45,7 +48,7 @@ if MQTT_HOST is None:
 ZenAuth = namedtuple("ZenAuth",["productKey","deviceKey","clientId"])
 
 # MQTT broker where we subscribe to all the telemetry data we need to steer
-broker = config.get('zendure', 'zen_mqtt', fallback='mq.zen-iot.com') or os.environ.get('ZEN_MQTT','mq.zen-iot.com')
+broker = ZEN_MQTT_HOST
 port = 1883
 zendure_client: mqtt_client
 
@@ -161,6 +164,11 @@ def on_local_message(client, userdata, msg):
             log.info("Online mode: forwarding limit command to Zendure Cloud")
             set_zendure_limit(payload)
 
+    if "properties/read" in msg.topic:
+        if not offline_mode:
+            log.info("Online mode: forwarding read command to Zendure Cloud")
+            zendure_update(payload)
+
     if "batteries" in msg.topic:
         sn = msg.topic.split('/')[-2]
         if property not in  ["socLevel", "power","maxTemp"]:
@@ -241,7 +249,7 @@ def on_local_disconnect(client, userdata, rc):
 def connect_zendure_mqtt(client_id) -> mqtt_client:
     global zendure_client
     zendure_client = mqtt_client.Client(client_id=client_id, userdata="Zendure Production MQTT")
-    zendure_client.username_pw_set(username="zenApp", password="oK#PCgy6OZxd")
+    zendure_client.username_pw_set(username=ZEN_MQTT_USER, password=ZEN_MQTT_PWD)
     zendure_client.reconnect_delay_set(min_delay=1, max_delay=120)
     zendure_client.on_connect = on_connect
     zendure_client.on_disconnect = on_zendure_disconnect
@@ -282,6 +290,7 @@ def local_subscribe(client: mqtt_client):
     client.subscribe("/A8yh63/+/properties/report")
     client.subscribe("/A8yh63/+/log")
     client.subscribe("iot/A8yh63/+/properties/write")
+    client.subscribe("iot/A8yh63/+/properties/read")
     client.on_message = on_local_message
 
 def get_auth() -> ZenAuth:
@@ -310,13 +319,8 @@ def zendure_mqtt_background_task():
 
     zendure_subscribe(client,auth)
     client.loop_start()
-    # request a time sync
-    payload = {
-        "messageId":"123",
-        "deviceId": auth.deviceKey,
-        "timestamp": int(time.time())
-    }
-    client.publish(f'/{auth.productKey}/{auth.deviceKey}/time-sync',json.dumps(payload))
+    # Request update of all topics
+    zendure_update()
 
 def local_mqtt_background_task():
     client = None
@@ -370,6 +374,11 @@ def setLimit(msg):
         set_local_limit(json.dumps(payload))
     else:
         set_zendure_limit(json.dumps(payload))
+
+def zendure_update(payload=json.dumps({"properties": ["getAll"]})):
+    global zendure_client
+    zendure_client.publish(f'iot/{device_details["productKey"]}/{device_details["deviceKey"]}/properties/read', payload)
+    log.info(f'Publishing read command: {payload}')
 
 @socketio.on('disconnect')
 def disconnect():
