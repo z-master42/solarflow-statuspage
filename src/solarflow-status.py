@@ -33,7 +33,7 @@ ZEN_USER = config.get('zendure', 'login', fallback=None) or os.environ.get('ZEN_
 ZEN_PASSWD = config.get('zendure', 'password', fallback=None) or os.environ.get('ZEN_PASSWD',None)
 ZEN_API = config.get('zendure', 'zen_api', fallback='https://app.zendure.tech/v2') or os.environ.get('ZEN_API','https://app.zendure.tech/v2')
 MQTT_HOST = config.get('local', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
-MQTT_PORT = config.getint('local', 'mqtt_port', fallback=1883) or int(os.environ.get('MQTT_PORT',1883))
+MQTT_PORT = config.getint('local', 'mqtt_port', fallback=0) or int(os.environ.get('MQTT_PORT',1883))
 MQTT_USER = config.get('local', 'mqtt_user', fallback=None) or os.environ.get('MQTT_USER',None)
 MQTT_PWD =  config.get('local', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT_PWD',None)
 
@@ -271,9 +271,6 @@ def zendure_subscribe(client: mqtt_client, auth: ZenAuth):
 
 def local_subscribe(client: mqtt_client):
     log.info(f'Subscribing to topics...')
-    report_topic = f'/{device_details["productKey"]}/+/properties/report'
-    log_topic = f'/{device_details["productKey"]}/+/log'
-    iot_topic = f'iot/{device_details["productKey"]}/+/properties/write'
     client.subscribe("solarflow-hub/telemetry/#")
     client.subscribe("solarflow-hub/control/#")
     client.subscribe("solarflow-hub/+/telemetry/#")
@@ -285,9 +282,6 @@ def local_subscribe(client: mqtt_client):
     client.subscribe("/A8yh63/+/properties/report")
     client.subscribe("/A8yh63/+/log")
     client.subscribe("iot/A8yh63/+/properties/write")
-    client.subscribe(report_topic)
-    client.subscribe(log_topic)
-    client.subscribe(iot_topic)
     client.on_message = on_local_message
 
 def get_auth() -> ZenAuth:
