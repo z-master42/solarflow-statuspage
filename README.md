@@ -1,3 +1,10 @@
+## Preliminary information
+This is a fork of the wonderful work by [Reinhard Weber](https://github.com/reinhard-brandstaedter). I am using the latest version of the [SolarFlow-Statuspage](https://github.com/reinhard-brandstaedter/solarflow-statuspage) (0.24). With a [bug fix](https://github.com/reinhard-brandstaedter/solarflow-statuspage/commit/792a7cd3158955d1eee22fbe6f54706fe64429f3) from the Dev branch. I have also implemented [this](https://github.com/reinhard-brandstaedter/solarflow-statuspage/pull/56) PR.
+
+I use this to bring my Hub 2000 into my Home Assistant via MQTT. The data transfer is significantly faster than I described [here](https://github.com/z-master42/solarflow). Of course, the MQTT entities still have to be created via YAML.
+
+Thanks to the improvements from the above-mentioned PR, it is now also possible to force a retrieval of all values. I do this after restarting Home Assistant.
+
 ## Solarflow Statuspage and Control
 
 The Solarflow Statuspage is an alternative to the mobile app. It gives a quick overview of the status of the hub, providing realtime data of the output to home, the current solar power generated and the battery charging power as well as the temperature nad individual battiers connected to your hub.
